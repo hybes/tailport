@@ -1,0 +1,26 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  darwin:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install jq
+        run: brew install jq
+      - name: Build and test
+        run: make test
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Build
+        shell: powershell
+        run: ./scripts/build-windows.ps1
+      - name: Test
+        shell: powershell
+        run: ./tests/tailport_windows_test.ps1
