@@ -1,10 +1,48 @@
 # tailport
 
-`tailport` is a small macOS and Windows command for interactively forwarding
-ports from a machine on your Tailscale network to `localhost`.
+`tailport` forwards ports from machines on your Tailscale network to `localhost`.
+It includes a command for macOS and Windows, and a native SwiftUI app for macOS.
 
-It reads online peers from `tailscale status --json`, lets you choose one, then
-opens one SSH connection containing all requested local forwards.
+The command reads online peers from `tailscale status --json`, lets you choose
+one, then opens one SSH connection containing all requested local forwards.
+
+## Native macOS app
+
+Build locally with Xcode's command-line tools (Swift 6 or newer):
+
+```sh
+make app
+open dist/Tailport.app
+```
+
+Copy `dist/Tailport.app` to Applications to keep it installed. The app requires
+macOS 14 or newer and Tailscale. It uses the system SSH client and your existing
+SSH configuration; it does not need `jq`, `fzf`, or the `tp` command installed.
+
+- Choose the Mac mini or another Tailscale machine. Its TCP listeners appear
+  with their process names and refresh every ten seconds.
+- Toggle a port to make it available at the same `localhost` port on this Mac.
+  Click its address to open it in your browser.
+- **All ports** applies to the full list of allowed ports. Showing ignored
+  ports does not include them in this switch.
+- **Exclusions** lets you edit ignored ports, ranges and process names.
+  Right-click a port to add it to the exclusions.
+- Apple sharing services, AirPlay, SSH and common system ports are ignored by
+  default. AirPlay is excluded by process name, leaving ports 5000 and 7000
+  available to development servers.
+- Closing the window keeps forwarding active. Reopen it from the menu bar.
+  Quitting the app closes its tunnels.
+
+The selected machine and exclusions are remembered. Forwarding starts when
+you toggle a port; it is not automatically restored on launch. Discovery uses
+`lsof` on the remote Mac and shows listeners visible to your SSH user. No
+remote agent or administrator access is required. Machines without macOS's
+`/usr/sbin/lsof` are not supported by the app's discovery.
+
+SSH authentication must already work without a password prompt. If the app
+reports that SSH access needs attention, connect once in Terminal with
+`ssh bh-mm` (or your selected machine), then refresh. Local port conflicts are
+reported beside the affected port; the other forwards continue working.
 
 ## Install a release
 
@@ -46,16 +84,19 @@ The release also provides standalone `tailport-0.1.0-darwin` and
 ## Build from source
 
 Download and extract `tailport-0.1.0-source.tar.gz`, or clone the repository.
-The implementations are ordinary, inspectable Zsh and PowerShell. The build
-only stamps the version from `VERSION`; it does not compile native code.
+The command implementations are ordinary Zsh and PowerShell. `make build`
+stamps their version from `VERSION`. `make app` compiles the separate SwiftUI
+app without third-party package dependencies.
 
 ```text
 tailport/
+├── macos/                        # native SwiftUI app and Swift tests
 ├── src/
 │   ├── tailport.zsh               # Darwin implementation
 │   └── tailport.ps1               # Windows implementation
 ├── scripts/
 │   ├── build.zsh                  # builds both release scripts on Darwin
+│   ├── build-app.zsh              # builds the native macOS app bundle
 │   ├── build-windows.ps1          # builds the Windows script on Windows
 │   ├── package.zsh                # creates archives and checksums
 │   ├── install.sh                 # Darwin release installer
@@ -84,7 +125,8 @@ On Windows:
 .\scripts\install.ps1
 ```
 
-GitHub Actions runs the native test suite on both Darwin and Windows.
+GitHub Actions runs the command tests on both Darwin and Windows, plus the
+Swift app tests on Darwin.
 
 ## Requirements
 
@@ -115,6 +157,8 @@ For version `0.1.0`, this produces:
 - `dist/tailport-0.1.0-windows.ps1`
 - `dist/tailport-0.1.0-windows.zip`
 - `dist/tailport-0.1.0-source.tar.gz`
+- `dist/Tailport.app`
+- `dist/tailport-0.1.0-macos.zip` (locally signed app, built for the current Mac's architecture)
 - `dist/SHA256SUMS`
 
 Change `VERSION` before a future release, commit the change, create a matching
@@ -152,10 +196,14 @@ options. Keep the command running while using the forwarded ports; press
 
 ## Security
 
-Local listeners bind explicitly to `127.0.0.1`, so forwarded ports are only
-available on the machine running `tailport`. SSH connects to remote services at
-`localhost`, allowing the destination to select its available IPv4 or IPv6
-loopback listener.
+The command binds local listeners explicitly to `127.0.0.1`. The native app
+binds both `127.0.0.1` and `::1`, and treats a conflict on either as a failure.
+Forwarded ports are only available on the Mac running Tailport.
+
+The command connects to remote services at `localhost`. The app uses
+`localhost` for wildcard and loopback listeners, or the reported address for
+listeners bound to a specific interface. The app requires an existing trusted
+SSH host key; it does not automatically accept unknown or changed host keys.
 
 ## License
 

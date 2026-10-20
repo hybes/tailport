@@ -1,17 +1,25 @@
 PREFIX ?= $(HOME)/.local
 BINDIR ?= $(PREFIX)/bin
 DARWIN_ARTIFACT := $(CURDIR)/dist/tailport-darwin
+export TAILPORT_BUILD_DIR ?= $(CURDIR)/macos/.build
 
-.PHONY: build test package release install uninstall clean
+.PHONY: build app test test-app package release install uninstall clean
 
 build:
 	zsh scripts/build.zsh
 
+app:
+	zsh scripts/build-app.zsh
+
 test: build
 	zsh -n src/tailport.zsh
 	zsh tests/tailport_test.zsh "$(DARWIN_ARTIFACT)"
+	$(MAKE) test-app
 
-package: test
+test-app:
+	swift test --package-path macos --scratch-path "$(TAILPORT_BUILD_DIR)"
+
+package: test app
 	zsh scripts/package.zsh
 
 release:

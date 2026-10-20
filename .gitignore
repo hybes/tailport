@@ -1,1 +1,3 @@
 /dist/
+/macos/.build/
+/macos/.swiftpm/

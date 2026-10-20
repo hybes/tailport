@@ -13,6 +13,7 @@ windows_script_name="$windows_name.ps1"
 windows_archive_name="$windows_name.zip"
 source_name="tailport-$version-source"
 source_archive_name="$source_name.tar.gz"
+macos_archive_name="tailport-$version-macos.zip"
 
 command -v zip >/dev/null 2>&1 || {
   print -u2 -- 'package: zip is required to create the Windows release archive'
@@ -55,12 +56,14 @@ install -m 0644 "$repo_root/VERSION" "$source_dir/VERSION"
 install -m 0755 "$repo_root/src/tailport.zsh" "$source_dir/src/tailport.zsh"
 install -m 0644 "$repo_root/src/tailport.ps1" "$source_dir/src/tailport.ps1"
 install -m 0755 "$repo_root/scripts/build.zsh" "$source_dir/scripts/build.zsh"
+install -m 0755 "$repo_root/scripts/build-app.zsh" "$source_dir/scripts/build-app.zsh"
 install -m 0644 "$repo_root/scripts/build-windows.ps1" "$source_dir/scripts/build-windows.ps1"
 install -m 0755 "$repo_root/scripts/install.sh" "$source_dir/scripts/install.sh"
 install -m 0644 "$repo_root/scripts/install.ps1" "$source_dir/scripts/install.ps1"
 install -m 0755 "$repo_root/scripts/package.zsh" "$source_dir/scripts/package.zsh"
 install -m 0755 "$repo_root/tests/tailport_test.zsh" "$source_dir/tests/tailport_test.zsh"
 install -m 0644 "$repo_root/tests/tailport_windows_test.ps1" "$source_dir/tests/tailport_windows_test.ps1"
+tar -cf - --exclude '.build' --exclude '.swiftpm' -C "$repo_root" macos | tar -xf - -C "$source_dir"
 
 tar -czf "$dist_dir/$darwin_archive_name" -C "$stage" "$darwin_name"
 (
@@ -68,6 +71,7 @@ tar -czf "$dist_dir/$darwin_archive_name" -C "$stage" "$darwin_name"
   zip -qr "$dist_dir/$windows_archive_name" "$windows_name"
 )
 tar -czf "$dist_dir/$source_archive_name" -C "$stage" "$source_name"
+ditto -c -k --sequesterRsrc --keepParent "$dist_dir/Tailport.app" "$dist_dir/$macos_archive_name"
 (
   cd "$dist_dir"
   shasum -a 256 \
@@ -75,7 +79,8 @@ tar -czf "$dist_dir/$source_archive_name" -C "$stage" "$source_name"
     "$darwin_archive_name" \
     "$windows_script_name" \
     "$windows_archive_name" \
-    "$source_archive_name" > SHA256SUMS
+    "$source_archive_name" \
+    "$macos_archive_name" > SHA256SUMS
 )
 
 print -- "Packaged dist/$darwin_name"
@@ -83,4 +88,5 @@ print -- "Packaged dist/$darwin_archive_name"
 print -- "Packaged dist/$windows_script_name"
 print -- "Packaged dist/$windows_archive_name"
 print -- "Packaged dist/$source_archive_name"
+print -- "Packaged dist/$macos_archive_name"
 print -- "Wrote dist/SHA256SUMS"
