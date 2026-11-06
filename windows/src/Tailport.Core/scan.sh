@@ -21,6 +21,9 @@ hosts=$(echo "$addr" | awk -F/ '{
 }' 2>&1)
 echo "$hosts" | grep '^S '
 targets=$(echo "$hosts" | grep -v '^S ')
+# Without nc the devices are still listed, but the apps must say that ports were not checked.
+probe=yes
+command -v nc >/dev/null 2>&1 || { probe=no; echo 'W nc'; }
 for ip in $targets; do
   if [ "$(uname -s)" = Darwin ]; then ping -c 1 -t 1 -q "$ip" >/dev/null 2>&1 &
   else ping -c 1 -W 1 -q "$ip" >/dev/null 2>&1 & fi
@@ -38,6 +41,7 @@ echo "$found" | { while read -r ip mac; do
    if command -v getent >/dev/null 2>&1; then name=$(timeout 2 getent hosts "$ip" 2>/dev/null | awk '{ print $2; exit }')
    elif [ -x /usr/bin/dig ]; then name=$(/usr/bin/dig +short +time=1 +tries=1 -x "$ip" 2>/dev/null | sed -n '1s/\.$//p'); fi
    echo "H $ip $mac $name") &
+  [ "$probe" = yes ] || continue
   # Each device is probed in batches of 12 ports, keeping the number of processes small.
   (n=0
    for port in $ports; do

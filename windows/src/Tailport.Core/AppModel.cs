@@ -312,7 +312,9 @@ public sealed class AppModel
             if (result.Error.Contains("tailport: no local network found"))
                 throw new TailportException($"{MachineName} is not connected to a local network.");
             if (result.Status != 0) throw new TailportException(Ssh.Explain(result.Error, target));
-            (ScannedSubnet, ScannedHosts) = NetworkScan.Parse(result.Output);
+            var (subnet, hosts, portsChecked) = NetworkScan.Parse(result.Output);
+            (ScannedSubnet, ScannedHosts) = (subnet, hosts);
+            if (!portsChecked) ScanError = NetworkScan.MissingNetcat(MachineName);
         }
         catch (TailportException error)
         {

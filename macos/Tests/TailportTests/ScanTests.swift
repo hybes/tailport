@@ -44,7 +44,7 @@ final class ScanTests: XCTestCase {
     }
 
     /// Runs the real scan script against stub tools, so no network is touched.
-    private func runScript(darwin: Bool) throws -> String {
+    private func runScript(darwin: Bool, netcat: Bool = true) throws -> String {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent("tailport-scan-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false)
         defer { try? FileManager.default.removeItem(at: directory) }
@@ -71,12 +71,19 @@ final class ScanTests: XCTestCase {
             try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: url.path)
         }
         if darwin { try FileManager.default.removeItem(at: directory.appendingPathComponent("getent")) }
+        if !netcat {
+            // Without the system directories on the PATH, the only tools are the stubs plus awk and grep.
+            try FileManager.default.removeItem(at: directory.appendingPathComponent("nc"))
+            for tool in ["awk", "grep"] {
+                try FileManager.default.createSymbolicLink(atPath: directory.appendingPathComponent(tool).path, withDestinationPath: "/usr/bin/\(tool)")
+            }
+        }
         let process = Process()
         let output = Pipe()
         let input = Pipe()
         process.executableURL = URL(fileURLWithPath: "/bin/sh")
         process.arguments = ["-s"]
-        process.environment = ["PATH": "\(directory.path):/usr/bin:/bin"]
+        process.environment = ["PATH": netcat ? "\(directory.path):/usr/bin:/bin" : directory.path]
         process.standardInput = input
         process.standardOutput = output
         try process.run()
@@ -99,6 +106,15 @@ final class ScanTests: XCTestCase {
         XCTAssertEqual(hub.name, "hub.home.arpa")
         XCTAssertEqual(hub.ports, [443])
         XCTAssertEqual(result.hosts.first { $0.ip == "10.9.8.30" }?.ports, [22])
+    }
+
+    func testScriptWithoutNetcatListsDevicesAndSaysPortsWereNotChecked() throws {
+        let result = NetworkScan.parse(try runScript(darwin: false, netcat: false))
+        XCTAssertFalse(result.portsChecked)
+        XCTAssertEqual(Set(result.hosts.map(\.ip)), ["10.9.8.30", "10.9.8.254"])
+        XCTAssertTrue(result.hosts.allSatisfy(\.ports.isEmpty))
+        XCTAssertTrue(NetworkScan.parse(try runScript(darwin: false)).portsChecked)
+        XCTAssertTrue(NetworkScan.missingNetcat(on: "th-pi-400").contains("sudo apt install netcat-openbsd"))
     }
 
     func testScriptOnMacReadsHexNetmaskAndArpTable() throws {

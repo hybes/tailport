@@ -153,8 +153,10 @@ public class DeviceTests
         var output = "S 192.168.1.0/24\r\nP 192.168.1.254 443\nH 192.168.1.254 60:8d:26:cc:fa:63 hub.home.arpa\n" +
                      "H 192.168.1.71 f0:09:0d:63:de:10 deco-X10.lan\nP 192.168.1.254 80\nH 192.168.1.9 b4:1f:4d:46:49:e4\n" +
                      "P not-an-ip 80\nP 192.168.1.9 99999\ngarbage\n";
-        var (subnet, hosts) = NetworkScan.Parse(output);
+        var (subnet, hosts, portsChecked) = NetworkScan.Parse(output);
         Assert.Equal("192.168.1.0/24", subnet);
+        Assert.True(portsChecked);
+        Assert.False(NetworkScan.Parse("S 10.0.0.0/24\nW nc\nH 10.0.0.1 aa:bb:cc:dd:ee:ff\n").PortsChecked);
         Assert.Equal(["192.168.1.254", "192.168.1.9", "192.168.1.71"], hosts.Select(h => h.Ip));
         Assert.Equal([80, 443], hosts[0].Ports);
         Assert.Equal("hub", hosts[0].Label);
@@ -199,8 +201,10 @@ public class SharedWithMacTests
 /// <summary>Runs the real scan script against stub tools, so no network is touched. Needs a POSIX shell.</summary>
 public class ScanScriptTests
 {
-    [Fact]
-    public void ScriptOnLinuxFindsNeighboursNamesAndOpenPorts()
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void ScriptOnLinuxFindsNeighboursNamesAndOpenPorts(bool netcat)
     {
         if (OperatingSystem.IsWindows() || !File.Exists("/bin/sh")) return;
         var directory = Directory.CreateTempSubdirectory("tailport-scan-");
@@ -221,21 +225,25 @@ public class ScanScriptTests
                 esac
                 """);
             Stub("ping", "exit 0");
-            Stub("nc", "case \"$*\" in *'10.9.8.254 443'*|*'10.9.8.30 22'*) exit 0;; esac; exit 1");
+            if (netcat) Stub("nc", "case \"$*\" in *'10.9.8.254 443'*|*'10.9.8.30 22'*) exit 0;; esac; exit 1");
+            // Without the system directories on the PATH, the only tools are the stubs plus awk and grep.
+            foreach (var tool in new[] { "awk", "grep" })
+                File.CreateSymbolicLink(Path.Combine(directory.FullName, tool), File.Exists($"/usr/bin/{tool}") ? $"/usr/bin/{tool}" : $"/bin/{tool}");
             Stub("getent", "[ \"$2\" = 10.9.8.254 ] && echo '10.9.8.254 hub.home.arpa'");
             Stub("timeout", "shift; exec \"$@\"");
             var info = new ProcessStartInfo("/bin/sh", ["-s"]) { RedirectStandardInput = true, RedirectStandardOutput = true };
-            info.Environment["PATH"] = $"{directory.FullName}:/usr/bin:/bin";
+            info.Environment["PATH"] = directory.FullName;
             using var process = Process.Start(info)!;
             process.StandardInput.Write(NetworkScan.Script);
             process.StandardInput.Close();
             var output = process.StandardOutput.ReadToEnd();
             process.WaitForExit();
-            var (subnet, hosts) = NetworkScan.Parse(output);
+            var (subnet, hosts, portsChecked) = NetworkScan.Parse(output);
             Assert.Equal("10.9.8.0/24", subnet);
+            Assert.Equal(netcat, portsChecked);
             Assert.Equal(new HashSet<string> { "10.9.8.30", "10.9.8.254" }, hosts.Select(h => h.Ip).ToHashSet());
             Assert.Equal("hub.home.arpa", hosts.Single(h => h.Ip == "10.9.8.254").Name);
-            Assert.Equal([443], hosts.Single(h => h.Ip == "10.9.8.254").Ports);
+            Assert.Equal(netcat ? [443] : [], hosts.Single(h => h.Ip == "10.9.8.254").Ports);
         }
         finally { directory.Delete(true); }
     }

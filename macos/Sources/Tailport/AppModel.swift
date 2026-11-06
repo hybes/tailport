@@ -265,6 +265,7 @@ final class AppModel: ObservableObject {
             let found = NetworkScan.parse(String(decoding: result.output, as: UTF8.self))
             scannedSubnet = found.subnet
             scannedHosts = found.hosts
+            if !found.portsChecked { scanError = NetworkScan.missingNetcat(on: machineName) }
         } catch {
             guard request == generation else { return }
             scanError = error.localizedDescription

@@ -298,6 +298,9 @@ hosts=$(echo "$addr" | awk -F/ '{
 }' 2>&1)
 echo "$hosts" | grep '^S '
 targets=$(echo "$hosts" | grep -v '^S ')
+# Without nc the devices are still listed, but the apps must say that ports were not checked.
+probe=yes
+command -v nc >/dev/null 2>&1 || { probe=no; echo 'W nc'; }
 for ip in $targets; do
   if [ "$(uname -s)" = Darwin ]; then ping -c 1 -t 1 -q "$ip" >/dev/null 2>&1 &
   else ping -c 1 -W 1 -q "$ip" >/dev/null 2>&1 & fi
@@ -315,6 +318,7 @@ echo "$found" | { while read -r ip mac; do
    if command -v getent >/dev/null 2>&1; then name=$(timeout 2 getent hosts "$ip" 2>/dev/null | awk '{ print $2; exit }')
    elif [ -x /usr/bin/dig ]; then name=$(/usr/bin/dig +short +time=1 +tries=1 -x "$ip" 2>/dev/null | sed -n '1s/\.$//p'); fi
    echo "H $ip $mac $name") &
+  [ "$probe" = yes ] || continue
   # Each device is probed in batches of 12 ports, keeping the number of processes small.
   (n=0
    for port in $ports; do
@@ -327,9 +331,11 @@ done
 wait; }
 """#
 
-    /// Devices with open ports come first, each group in address order.
-    static func parse(_ output: String) -> (subnet: String?, hosts: [ScannedHost]) {
+    /// Devices with open ports come first, each group in address order. `portsChecked` is false when the
+    /// remote machine has no nc, so an empty port list means "not checked" rather than "nothing open".
+    static func parse(_ output: String) -> (subnet: String?, hosts: [ScannedHost], portsChecked: Bool) {
         var subnet: String?
+        var portsChecked = true
         var hosts: [String: ScannedHost] = [:]
         var ports: [String: Set<Int>] = [:]
         var ipv4 = in_addr()
@@ -337,6 +343,7 @@ wait; }
             let fields = line.split(separator: " ", omittingEmptySubsequences: true).map(String.init)
             guard let kind = fields.first else { continue }
             if kind == "S", fields.count >= 2 { subnet = fields[1]; continue }
+            if kind == "W", fields.count >= 2, fields[1] == "nc" { portsChecked = false; continue }
             guard fields.count >= 3, inet_pton(AF_INET, fields[1], &ipv4) == 1 else { continue }
             if kind == "H" {
                 hosts[fields[1]] = ScannedHost(ip: fields[1], mac: fields[2], name: fields.count > 3 ? fields[3] : "")
@@ -349,7 +356,7 @@ wait; }
             host.ports = (ports[host.ip] ?? []).sorted()
             return host
         }.sorted { ($0.ports.isEmpty ? 1 : 0, order($0.ip)) < ($1.ports.isEmpty ? 1 : 0, order($1.ip)) }
-        return (subnet, found)
+        return (subnet, found, portsChecked)
     }
 
     /// TCP ports probed on each device: web and admin pages, file sharing, media servers, home automation,
@@ -371,6 +378,10 @@ wait; }
     ]
 
     static func service(_ port: Int) -> String? { services[port] }
+
+    static func missingNetcat(on machine: String) -> String {
+        "Ports were not checked because \(machine) has no nc. Install netcat there (for example, sudo apt install netcat-openbsd), then scan again."
+    }
 
     /// How macOS opens a forwarded port, or nil for services that need their own app, such as Minecraft.
     static func scheme(_ port: Int) -> String? {

@@ -113,10 +113,17 @@ public static class NetworkScan
     public static string DeviceName(ScannedHost host, int port) =>
         Service(port) is { } service && service != "Web" ? $"{host.Label} · {service}" : host.Label;
 
-    /// <summary>Devices with open ports come first, each group in address order.</summary>
-    public static (string? Subnet, List<ScannedHost> Hosts) Parse(string output)
+    public static string MissingNetcat(string machine) =>
+        $"Ports were not checked because {machine} has no nc. Install netcat there (for example, sudo apt install netcat-openbsd), then scan again.";
+
+    /// <summary>
+    /// Devices with open ports come first, each group in address order. PortsChecked is false when the remote
+    /// machine has no nc, so an empty port list means "not checked" rather than "nothing open".
+    /// </summary>
+    public static (string? Subnet, List<ScannedHost> Hosts, bool PortsChecked) Parse(string output)
     {
         string? subnet = null;
+        var portsChecked = true;
         var hosts = new Dictionary<string, (string Mac, string Name)>();
         var ports = new Dictionary<string, SortedSet<int>>();
         foreach (var line in output.Split('\n'))
@@ -124,6 +131,7 @@ public static class NetworkScan
             var fields = line.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
             if (fields.Length == 0) continue;
             if (fields[0] == "S" && fields.Length >= 2) { subnet = fields[1]; continue; }
+            if (fields[0] == "W" && fields.Length >= 2 && fields[1] == "nc") { portsChecked = false; continue; }
             if (fields.Length < 3 || !IPAddress.TryParse(fields[1], out var ip) || ip.AddressFamily != AddressFamily.InterNetwork) continue;
             if (fields[0] == "H") hosts[fields[1]] = (fields[2], fields.Length > 3 ? fields[3] : "");
             else if (fields[0] == "P" && int.TryParse(fields[2], out var port) && port is >= 1 and <= 65535)
@@ -132,7 +140,7 @@ public static class NetworkScan
         var found = hosts.Select(h => new ScannedHost(h.Key, h.Value.Mac, h.Value.Name,
                 ports.TryGetValue(h.Key, out var set) ? set.ToList() : []))
             .OrderBy(h => h.Ports.Count == 0 ? 1 : 0).ThenBy(h => Order(h.Ip)).ToList();
-        return (subnet, found);
+        return (subnet, found, portsChecked);
     }
 
     static long Order(string ip) => ip.Split('.').Aggregate(0L, (sum, part) => sum * 256 + (long.TryParse(part, out var n) ? n : 0));
