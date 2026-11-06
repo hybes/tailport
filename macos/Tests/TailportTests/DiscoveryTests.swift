@@ -78,6 +78,22 @@ final class DiscoveryTests: XCTestCase {
         XCTAssertThrowsError(try Peer.decode(Data("The Tailscale CLI failed to start".utf8)))
     }
 
+    func testPeerNamesMatchTailscaleAndSharedMachinesGroupByOwner() throws {
+        let json = """
+        {"BackendState":"Running","CurrentTailnet":{"MagicDNSEnabled":true},"Self":{"UserID":1},
+         "User":{"1":{"DisplayName":"Ben"},"2":{"DisplayName":"Jack Grassby"}},"Peer":{
+          "a":{"HostName":"apple-tv","DNSName":"bh-atv.example.ts.net.","UserID":1,"Online":true},
+          "b":{"HostName":"th-pi-400","DNSName":"th-pi-400.example.ts.net.","UserID":1,"Online":true},
+          "c":{"HostName":"GF-NICKHOME","DNSName":"gf-nickhome.example.ts.net.","UserID":2,"Online":true}
+        }}
+        """
+        let peers = try Peer.decode(Data(json.utf8))
+        XCTAssertEqual(peers.map(\.displayName), ["bh-atv (apple-tv)", "gf-nickhome", "th-pi-400"])
+        let groups = Peer.grouped(peers)
+        XCTAssertEqual(groups.map(\.owner), [nil, "Jack Grassby"])
+        XCTAssertEqual(groups[0].peers.map(\.name), ["bh-atv", "th-pi-400"])
+    }
+
     func testPeerDecodingFallsBackToAddressWithoutMagicDNS() throws {
         let json = """
         {"BackendState":"Running","Peer":{"one":{"HostName":"Mac mini","DNSName":"bh-mm.example.ts.net.","TailscaleIPs":["100.64.0.2"],"Online":true}}}

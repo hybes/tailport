@@ -22,6 +22,15 @@ command -v zip >/dev/null 2>&1 || {
 
 "$repo_root/scripts/build.zsh"
 
+# The Windows app needs the .NET 10 SDK; skip it, with a warning, when it is not installed.
+windows_app_names=()
+if command -v "${DOTNET:-dotnet}" >/dev/null 2>&1; then
+  "$repo_root/scripts/build-windows-app.zsh"
+  windows_app_names=("tailport-$version-windows-app-x64.zip" "tailport-$version-windows-app-arm64.zip")
+else
+  print -u2 -- 'package: .NET SDK not found; skipping the Windows app'
+fi
+
 stage=$(mktemp -d "${TMPDIR:-/tmp}/tailport-package.XXXXXX")
 trap 'rm -rf "$stage"' EXIT
 
@@ -57,6 +66,7 @@ install -m 0755 "$repo_root/src/tailport.zsh" "$source_dir/src/tailport.zsh"
 install -m 0644 "$repo_root/src/tailport.ps1" "$source_dir/src/tailport.ps1"
 install -m 0755 "$repo_root/scripts/build.zsh" "$source_dir/scripts/build.zsh"
 install -m 0755 "$repo_root/scripts/build-app.zsh" "$source_dir/scripts/build-app.zsh"
+install -m 0755 "$repo_root/scripts/build-windows-app.zsh" "$source_dir/scripts/build-windows-app.zsh"
 install -m 0644 "$repo_root/scripts/build-windows.ps1" "$source_dir/scripts/build-windows.ps1"
 install -m 0755 "$repo_root/scripts/install.sh" "$source_dir/scripts/install.sh"
 install -m 0644 "$repo_root/scripts/install.ps1" "$source_dir/scripts/install.ps1"
@@ -64,6 +74,7 @@ install -m 0755 "$repo_root/scripts/package.zsh" "$source_dir/scripts/package.zs
 install -m 0755 "$repo_root/tests/tailport_test.zsh" "$source_dir/tests/tailport_test.zsh"
 install -m 0644 "$repo_root/tests/tailport_windows_test.ps1" "$source_dir/tests/tailport_windows_test.ps1"
 tar -cf - --exclude '.build' --exclude '.swiftpm' -C "$repo_root" macos | tar -xf - -C "$source_dir"
+tar -cf - --exclude 'bin' --exclude 'obj' -C "$repo_root" windows | tar -xf - -C "$source_dir"
 
 tar -czf "$dist_dir/$darwin_archive_name" -C "$stage" "$darwin_name"
 (
@@ -80,7 +91,8 @@ ditto -c -k --sequesterRsrc --keepParent "$dist_dir/Tailport.app" "$dist_dir/$ma
     "$windows_script_name" \
     "$windows_archive_name" \
     "$source_archive_name" \
-    "$macos_archive_name" > SHA256SUMS
+    "$macos_archive_name" \
+    "${windows_app_names[@]}" > SHA256SUMS
 )
 
 print -- "Packaged dist/$darwin_name"
@@ -89,4 +101,5 @@ print -- "Packaged dist/$windows_script_name"
 print -- "Packaged dist/$windows_archive_name"
 print -- "Packaged dist/$source_archive_name"
 print -- "Packaged dist/$macos_archive_name"
+for name in "${windows_app_names[@]}"; do print -- "Packaged dist/$name"; done
 print -- "Wrote dist/SHA256SUMS"

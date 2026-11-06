@@ -22,7 +22,7 @@ enum Commands {
         return path
     }
 
-    static func run(_ path: String, _ arguments: [String], timeout: TimeInterval = 15) async throws -> CommandResult {
+    static func run(_ path: String, _ arguments: [String], timeout: TimeInterval = 15, input: Data? = nil) async throws -> CommandResult {
         try await Task.detached(priority: .utility) {
             let directory = FileManager.default.temporaryDirectory.appendingPathComponent("tailport-\(UUID().uuidString)")
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
@@ -31,6 +31,10 @@ enum Commands {
             let errURL = directory.appendingPathComponent("stderr")
             FileManager.default.createFile(atPath: outURL.path, contents: nil)
             FileManager.default.createFile(atPath: errURL.path, contents: nil)
+            let inURL = directory.appendingPathComponent("stdin")
+            FileManager.default.createFile(atPath: inURL.path, contents: input ?? Data())
+            let stdin = try FileHandle(forReadingFrom: inURL)
+            defer { try? stdin.close() }
             let output = try FileHandle(forWritingTo: outURL)
             let errors = try FileHandle(forWritingTo: errURL)
             defer { try? output.close(); try? errors.close() }
@@ -38,7 +42,7 @@ enum Commands {
             process.executableURL = URL(fileURLWithPath: path)
             process.arguments = arguments
             process.environment = environment
-            process.standardInput = FileHandle.nullDevice
+            process.standardInput = input == nil ? FileHandle.nullDevice : stdin
             process.standardOutput = output
             process.standardError = errors
             let started = Date()

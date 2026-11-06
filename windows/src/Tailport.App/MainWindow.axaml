@@ -1,0 +1,238 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:Tailport.App"
+        x:Class="Tailport.App.MainWindow"
+        x:DataType="local:MainViewModel"
+        Title="Tailport"
+        Icon="/Assets/tailport.ico"
+        Width="760" Height="560" MinWidth="620" MinHeight="440"
+        WindowStartupLocation="CenterScreen">
+
+  <Window.KeyBindings>
+    <KeyBinding Gesture="F5" Command="{Binding RefreshCommand, RelativeSource={RelativeSource AncestorType=local:MainWindow}}" />
+  </Window.KeyBindings>
+
+  <Window.DataTemplates>
+    <!-- A row's secondary line: plain detail, or a success / failure message with a badge. -->
+    <DataTemplate DataType="local:StatusLine">
+      <StackPanel Spacing="2">
+        <TextBlock Classes="secondary" Text="{Binding Detail}" IsVisible="{Binding HasDetail}" TextWrapping="Wrap" />
+        <DockPanel IsVisible="{Binding IsOk}">
+          <Border Classes="badge ok"><TextBlock Text="✓" /></Border>
+          <TextBlock Text="{Binding Message}" FontSize="12" TextWrapping="Wrap" />
+        </DockPanel>
+        <DockPanel IsVisible="{Binding IsFailed}">
+          <Border Classes="badge failed"><TextBlock Text="!" /></Border>
+          <SelectableTextBlock Text="{Binding Message}" FontSize="12" TextWrapping="Wrap" />
+        </DockPanel>
+      </StackPanel>
+    </DataTemplate>
+  </Window.DataTemplates>
+
+  <Grid RowDefinitions="Auto,Auto,*,Auto">
+
+    <!-- Machine, route and commands -->
+    <Grid Grid.Row="0" Margin="20,16,20,14" ColumnDefinitions="Auto,*,Auto" RowDefinitions="Auto,Auto,Auto" >
+      <TextBlock Classes="label" Text="Forward from" Margin="0,0,16,0" />
+      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10">
+        <ComboBox Width="260" ItemsSource="{Binding Machines}" SelectedItem="{Binding SelectedMachine}"
+                  AutomationProperties.Name="Forward from">
+          <ComboBox.Styles>
+            <Style Selector="ComboBoxItem" x:DataType="local:PeerOption">
+              <Setter Property="IsEnabled" Value="{Binding IsSelectable}" />
+            </Style>
+          </ComboBox.Styles>
+          <ComboBox.ItemTemplate>
+            <DataTemplate x:DataType="local:PeerOption">
+              <Panel>
+                <TextBlock Text="{Binding Label}" IsVisible="{Binding IsSelectable}" />
+                <TextBlock Text="{Binding Label}" IsVisible="{Binding IsHeader}" Classes="section" />
+              </Panel>
+            </DataTemplate>
+          </ComboBox.ItemTemplate>
+        </ComboBox>
+        <Button Classes="icon" Content="↻" Click="Refresh_Click" IsVisible="{Binding !Refreshing}"
+                ToolTip.Tip="Refresh now (F5)" AutomationProperties.Name="Refresh" />
+        <ProgressBar IsIndeterminate="{Binding Refreshing}" Width="32" IsVisible="{Binding Refreshing}" VerticalAlignment="Center"
+                     AutomationProperties.Name="Refreshing ports" />
+      </StackPanel>
+      <Button Grid.Column="2" Content="Add device" Click="AddDevice_Click" VerticalAlignment="Center"
+              ToolTip.Tip="Reach a device on this machine’s network, such as its router" />
+
+      <TextBlock Grid.Row="1" Classes="label" Text="Route traffic through" Margin="0,10,16,0" />
+      <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Spacing="10" Margin="0,10,0,0">
+        <ComboBox Width="260" ItemsSource="{Binding Routers}" SelectedItem="{Binding SelectedRouter}"
+                  IsEnabled="{Binding RoutersAvailable}" AutomationProperties.Name="Route traffic through"
+                  ToolTip.Tip="Use a device as a Tailscale exit node to reach its network, such as your home router, from anywhere.">
+          <ComboBox.Styles>
+            <Style Selector="ComboBoxItem" x:DataType="local:PeerOption">
+              <Setter Property="IsEnabled" Value="{Binding IsSelectable}" />
+            </Style>
+          </ComboBox.Styles>
+          <ComboBox.ItemTemplate>
+            <DataTemplate x:DataType="local:PeerOption">
+              <Panel>
+                <TextBlock Text="{Binding Label}" IsVisible="{Binding IsSelectable}" />
+                <TextBlock Text="{Binding Label}" IsVisible="{Binding IsHeader}" Classes="section" />
+              </Panel>
+            </DataTemplate>
+          </ComboBox.ItemTemplate>
+        </ComboBox>
+        <ProgressBar IsIndeterminate="{Binding RoutingBusy}" Width="48" IsVisible="{Binding RoutingBusy}" VerticalAlignment="Center"
+                     AutomationProperties.Name="Changing route" />
+      </StackPanel>
+      <ContentControl Grid.Row="2" Grid.ColumnSpan="3" Margin="0,8,0,0" Content="{Binding RoutingStatus}"
+                      IsVisible="{Binding HasRoutingStatus}" />
+    </Grid>
+
+    <!-- Connection problem -->
+    <Border Grid.Row="1" IsVisible="{Binding HasError}" Background="{DynamicResource BannerBrush}"
+            CornerRadius="6" Padding="12,10" Margin="20,0,20,14">
+      <DockPanel>
+        <Button DockPanel.Dock="Right" Content="Retry" Click="Refresh_Click" Margin="12,0,0,0" VerticalAlignment="Center" />
+        <Border Classes="badge failed"><TextBlock Text="!" /></Border>
+        <SelectableTextBlock Text="{Binding Error}" TextWrapping="Wrap" VerticalAlignment="Center" />
+      </DockPanel>
+    </Border>
+
+    <!-- Devices and listening ports -->
+    <Border Grid.Row="2" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,1" Background="{DynamicResource SurfaceBrush}">
+      <Panel>
+        <ScrollViewer IsVisible="{Binding ShowList}">
+          <StackPanel>
+            <StackPanel IsVisible="{Binding HasDevices}">
+              <Border Classes="sectionHeader">
+                <DockPanel>
+                  <Button DockPanel.Dock="Right" Classes="link" Content="Add…" Click="AddDevice_Click" />
+                  <TextBlock Classes="section" Text="{Binding DevicesTitle}" />
+                </DockPanel>
+              </Border>
+              <ItemsControl ItemsSource="{Binding Devices}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="local:DeviceRow">
+                    <Border Classes="row">
+                      <Border.ContextMenu>
+                        <ContextMenu>
+                          <MenuItem Header="Open" Click="OpenDevice_Click" IsEnabled="{Binding HasLink}" />
+                          <MenuItem Header="Remove" Click="RemoveDevice_Click" />
+                        </ContextMenu>
+                      </Border.ContextMenu>
+                      <Grid ColumnDefinitions="*,Auto,Auto,Auto">
+                        <StackPanel Spacing="3" VerticalAlignment="Center">
+                          <TextBlock Text="{Binding Name}" FontWeight="Medium" />
+                          <ContentControl Content="{Binding Status}" />
+                        </StackPanel>
+                        <Button Grid.Column="1" Classes="link" Content="{Binding Link}" IsVisible="{Binding HasLink}"
+                                Click="OpenDevice_Click" Margin="12,0" />
+                        <ToggleSwitch Grid.Column="2" Classes="compact" IsChecked="{Binding IsOn}"
+                                      AutomationProperties.Name="{Binding Name, StringFormat='Forward {0}'}" />
+                        <Button Grid.Column="3" Classes="more" Content="⋯" Margin="4,0,0,0"
+                                ToolTip.Tip="More options" AutomationProperties.Name="{Binding Name, StringFormat='More options for {0}'}">
+                          <Button.Flyout>
+                            <MenuFlyout>
+                              <MenuItem Header="Open" Click="OpenDevice_Click" IsEnabled="{Binding HasLink}" />
+                              <MenuItem Header="Remove" Click="RemoveDevice_Click" />
+                            </MenuFlyout>
+                          </Button.Flyout>
+                        </Button>
+                      </Grid>
+                    </Border>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </StackPanel>
+
+            <Border Classes="sectionHeader">
+              <DockPanel>
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="8" IsVisible="{Binding ShowAllPorts}"
+                            ToolTip.Tip="Forward every allowed port to the same port on this computer, or stop them all. Excluded ports stay off.">
+                  <TextBlock Classes="section" Text="All ports" />
+                  <ToggleSwitch Classes="compact" IsChecked="{Binding AllPorts}" IsEnabled="{Binding AllPortsEnabled}"
+                                AutomationProperties.Name="All ports" />
+                </StackPanel>
+                <TextBlock Classes="section" Text="{Binding PortsTitle}"
+                           ToolTip.Tip="Each port you turn on opens at the same port on this computer." />
+              </DockPanel>
+            </Border>
+            <TextBlock Classes="secondary" FontSize="13" Margin="20,12" Text="{Binding PortsPlaceholder}"
+                       IsVisible="{Binding HasPortsPlaceholder}" />
+            <ItemsControl ItemsSource="{Binding Ports}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="local:PortRow">
+                  <Border Classes="row">
+                    <Border.ContextMenu>
+                      <ContextMenu>
+                        <MenuItem Header="{Binding NumberText, StringFormat='Exclude port {0}'}" Click="ExcludePort_Click"
+                                  IsVisible="{Binding !IsExcluded}" />
+                        <MenuItem Header="Edit exclusions…" Click="Exclusions_Click" />
+                      </ContextMenu>
+                    </Border.ContextMenu>
+                    <Grid ColumnDefinitions="72,*,Auto,Auto">
+                      <TextBlock Text="{Binding NumberText}" FontFamily="{StaticResource MonoFont}" FontWeight="Medium"
+                                 VerticalAlignment="Center" />
+                      <StackPanel Grid.Column="1" Spacing="3" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding Service}" TextTrimming="CharacterEllipsis" />
+                        <ContentControl Content="{Binding Status}" />
+                      </StackPanel>
+                      <Button Grid.Column="2" Classes="link" Content="{Binding Link}" IsVisible="{Binding HasLink}"
+                              Click="OpenPort_Click" Margin="12,0" />
+                      <ToggleSwitch Grid.Column="3" Classes="compact" IsChecked="{Binding IsOn}" IsEnabled="{Binding CanToggle}"
+                                    AutomationProperties.Name="{Binding NumberText, StringFormat='Forward port {0}'}" />
+                    </Grid>
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </ScrollViewer>
+
+        <StackPanel IsVisible="{Binding ShowEmptyState}" HorizontalAlignment="Center" VerticalAlignment="Center"
+                    Spacing="8" MaxWidth="420">
+          <ProgressBar IsIndeterminate="{Binding EmptyBusy}" Width="120" IsVisible="{Binding EmptyBusy}" />
+          <TextBlock Text="{Binding EmptyTitle}" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" />
+          <TextBlock Classes="secondary" FontSize="13" Text="{Binding EmptyMessage}" TextWrapping="Wrap" TextAlignment="Center" />
+          <Button Content="Add device…" Click="AddDevice_Click" HorizontalAlignment="Center" Margin="0,6,0,0"
+                  IsVisible="{Binding !EmptyBusy}" />
+        </StackPanel>
+      </Panel>
+    </Border>
+
+    <!-- Footer -->
+    <DockPanel Grid.Row="3" Margin="20,8">
+      <TextBlock DockPanel.Dock="Right" Classes="secondary" FontSize="13" Text="{Binding FooterStatus}" VerticalAlignment="Center" />
+      <StackPanel Orientation="Horizontal" Spacing="16">
+        <CheckBox Content="{Binding ShowIgnoredLabel}" IsChecked="{Binding ShowIgnored}" />
+        <Button Classes="link" Content="Edit exclusions…" Click="Exclusions_Click" />
+      </StackPanel>
+    </DockPanel>
+  </Grid>
+
+  <Window.Styles>
+    <Style Selector="Border.sectionHeader">
+      <Setter Property="Background" Value="{DynamicResource HeaderBackgroundBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource DividerBrush}" />
+      <Setter Property="BorderThickness" Value="0,0,0,1" />
+      <Setter Property="Padding" Value="20,6" />
+      <Setter Property="MinHeight" Value="34" />
+    </Style>
+    <Style Selector="Border.row">
+      <Setter Property="BorderBrush" Value="{DynamicResource DividerBrush}" />
+      <Setter Property="BorderThickness" Value="0,0,0,1" />
+      <Setter Property="Padding" Value="20,9,16,9" />
+      <Setter Property="Background" Value="Transparent" />
+    </Style>
+    <Style Selector="Button.icon">
+      <Setter Property="Padding" Value="8,4" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="FontSize" Value="16" />
+    </Style>
+    <Style Selector="Button.more">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Padding" Value="8,2" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+  </Window.Styles>
+</Window>

@@ -1,0 +1,88 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:Tailport.App"
+        x:Class="Tailport.App.AddDeviceWindow"
+        x:DataType="local:MainViewModel"
+        Title="Add device"
+        Icon="/Assets/tailport.ico"
+        Width="620" SizeToContent="Height" CanResize="False"
+        ShowInTaskbar="False" WindowStartupLocation="CenterOwner">
+  <StackPanel Margin="24,20,24,20" Spacing="12">
+    <TextBlock Text="Add device" FontSize="20" FontWeight="SemiBold" />
+    <TextBlock Classes="secondary" FontSize="13" Text="{Binding AddDeviceIntro}" TextWrapping="Wrap" />
+
+    <DockPanel>
+      <Button DockPanel.Dock="Right" Content="{Binding ScanButtonLabel}" IsEnabled="{Binding CanScan}" Click="Scan_Click" />
+      <ProgressBar DockPanel.Dock="Right" IsIndeterminate="{Binding Scanning}" Width="48" Margin="0,0,10,0" IsVisible="{Binding Scanning}"
+                   VerticalAlignment="Center" AutomationProperties.Name="Scanning" />
+      <TextBlock Classes="secondary" FontSize="13" Text="{Binding ScanSummary}" VerticalAlignment="Center" TextWrapping="Wrap" />
+    </DockPanel>
+
+    <DockPanel IsVisible="{Binding HasScanError}">
+      <Border Classes="badge failed"><TextBlock Text="!" /></Border>
+      <SelectableTextBlock Text="{Binding ScanError}" TextWrapping="Wrap" />
+    </DockPanel>
+
+    <Border IsVisible="{Binding HasScanResults}" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1"
+            CornerRadius="6" MaxHeight="300">
+      <ScrollViewer>
+        <ItemsControl ItemsSource="{Binding ScanHosts}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="local:ScanHostRow">
+              <Border BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,0,1" Padding="14,8">
+                <Grid ColumnDefinitions="170,*">
+                  <StackPanel VerticalAlignment="Center" Spacing="1">
+                    <TextBlock Text="{Binding Label}" TextTrimming="CharacterEllipsis" />
+                    <TextBlock Classes="secondary" Text="{Binding Ip}" IsVisible="{Binding ShowIp}" />
+                  </StackPanel>
+                  <ItemsControl Grid.Column="1" ItemsSource="{Binding Chips}" IsVisible="{Binding HasPorts}">
+                    <ItemsControl.ItemsPanel>
+                      <ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate x:DataType="local:PortChip">
+                        <Button Classes="chip" Click="Chip_Click" IsEnabled="{Binding !IsOn}" ToolTip.Tip="{Binding Tip}"
+                                ToolTip.ShowOnDisabled="True">
+                          <StackPanel Orientation="Horizontal" Spacing="5">
+                            <TextBlock Text="✓" IsVisible="{Binding IsOn}" Foreground="{DynamicResource SuccessBrush}" FontWeight="Bold" />
+                            <TextBlock Text="→" IsVisible="{Binding !IsOn}" />
+                            <TextBlock Text="{Binding ServiceName}" IsVisible="{Binding HasService}" />
+                            <TextBlock Text="{Binding PortText}" FontFamily="{StaticResource MonoFont}" />
+                          </StackPanel>
+                        </Button>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                  <Button Grid.Column="1" Classes="link" Content="Enter port…" IsVisible="{Binding HasNoPorts}"
+                          HorizontalAlignment="Left" Click="EnterPort_Click"
+                          ToolTip.Tip="No common ports answered. Enter the port below." />
+                </Grid>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </ScrollViewer>
+    </Border>
+
+    <TextBlock Classes="secondary" FontSize="13" Text="Or enter an address, for example 192.168.1.254:443" Margin="0,4,0,0" />
+    <Grid ColumnDefinitions="190,*,Auto" ColumnSpacing="8">
+      <TextBox x:Name="AddressBox" Watermark="Address" AutomationProperties.Name="Address" />
+      <TextBox x:Name="NameBox" Grid.Column="1" Watermark="Name (optional)" AutomationProperties.Name="Name" />
+      <Button x:Name="AddButton" Grid.Column="2" Content="Add" IsDefault="True" Click="Add_Click" />
+    </Grid>
+    <DockPanel x:Name="ErrorPanel" IsVisible="False">
+      <Border Classes="badge failed"><TextBlock Text="!" /></Border>
+      <SelectableTextBlock x:Name="ErrorText" TextWrapping="Wrap" />
+    </DockPanel>
+
+    <Button Content="Done" IsCancel="True" HorizontalAlignment="Right" Click="Done_Click" Margin="0,6,0,0" />
+  </StackPanel>
+
+  <Window.Styles>
+    <Style Selector="Button.chip">
+      <Setter Property="Margin" Value="0,3,6,3" />
+      <Setter Property="Padding" Value="9,3" />
+      <Setter Property="Background" Value="{DynamicResource ChipBrush}" />
+    </Style>
+  </Window.Styles>
+</Window>

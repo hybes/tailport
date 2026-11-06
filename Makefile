@@ -2,8 +2,9 @@ PREFIX ?= $(HOME)/.local
 BINDIR ?= $(PREFIX)/bin
 DARWIN_ARTIFACT := $(CURDIR)/dist/tailport-darwin
 export TAILPORT_BUILD_DIR ?= $(CURDIR)/macos/.build
+DOTNET ?= dotnet
 
-.PHONY: build app test test-app package release install uninstall clean
+.PHONY: build app test test-app windows-app test-windows-app windows-screenshots package release install uninstall clean
 
 build:
 	zsh scripts/build.zsh
@@ -18,6 +19,16 @@ test: build
 
 test-app:
 	swift test --package-path macos --scratch-path "$(TAILPORT_BUILD_DIR)"
+
+# The Windows app needs the .NET 10 SDK; it is not part of `make test` or `make release`.
+windows-app:
+	DOTNET="$(DOTNET)" zsh scripts/build-windows-app.zsh
+
+test-windows-app:
+	"$(DOTNET)" test windows/tests/Tailport.Core.Tests
+
+windows-screenshots:
+	"$(DOTNET)" run --project windows/tools/Tailport.Screenshots -- "$(CURDIR)/dist/windows-screenshots"
 
 package: test app
 	zsh scripts/package.zsh
