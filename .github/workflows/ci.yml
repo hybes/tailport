@@ -24,3 +24,20 @@ jobs:
       - name: Test
         shell: powershell
         run: ./tests/tailport_windows_test.ps1
+
+  windows-app:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: windows/global.json
+      - name: Test
+        run: dotnet test windows/tests/Tailport.Core.Tests
+      - name: Build Tailport.exe
+        shell: pwsh
+        run: dotnet publish windows/src/Tailport.App -c Release -r win-x64 "-p:TailportVersion=$(Get-Content VERSION)" -o dist/windows-app
+      - uses: actions/upload-artifact@v7
+        with:
+          name: Tailport-windows-x64
+          path: dist/windows-app/Tailport.exe

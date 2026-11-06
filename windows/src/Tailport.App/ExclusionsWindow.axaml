@@ -1,0 +1,34 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="Tailport.App.ExclusionsWindow"
+        Title="Exclusions"
+        Icon="/Assets/tailport.ico"
+        Width="560" SizeToContent="Height" CanResize="False"
+        ShowInTaskbar="False" WindowStartupLocation="CenterOwner">
+  <StackPanel Margin="24,20" Spacing="8">
+    <TextBlock Text="Exclusions" FontSize="20" FontWeight="SemiBold" />
+    <TextBlock Classes="secondary" FontSize="13" Text="Excluded ports stay off, including when you turn on all ports." TextWrapping="Wrap" />
+
+    <TextBlock Text="Ports" FontWeight="SemiBold" Margin="0,10,0,0" />
+    <TextBox x:Name="PortsBox" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="56" AutomationProperties.Name="Excluded ports" />
+    <TextBlock Classes="secondary" Text="Separate ports with commas. Ranges such as 8000-8010 are supported." TextWrapping="Wrap" />
+
+    <TextBlock Text="Processes" FontWeight="SemiBold" Margin="0,10,0,0" />
+    <TextBox x:Name="ProcessesBox" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="80" AutomationProperties.Name="Excluded processes" />
+    <TextBlock Classes="secondary" TextWrapping="Wrap"
+               Text="Exact process names, separated by commas. AirPlay is excluded by process, so development servers can still use ports 5000 and 7000." />
+
+    <DockPanel x:Name="ErrorPanel" IsVisible="False" Margin="0,6,0,0">
+      <Border Classes="badge failed"><TextBlock Text="!" /></Border>
+      <SelectableTextBlock x:Name="ErrorText" TextWrapping="Wrap" />
+    </DockPanel>
+
+    <DockPanel Margin="0,14,0,0">
+      <Button Content="Restore defaults" Click="Defaults_Click" />
+      <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+        <Button Content="Cancel" IsCancel="True" Click="Cancel_Click" />
+        <Button Content="Save" IsDefault="True" Classes="accent" Click="Save_Click" />
+      </StackPanel>
+    </DockPanel>
+  </StackPanel>
+</Window>

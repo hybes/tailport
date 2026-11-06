@@ -1,0 +1,109 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="Tailport.App.App"
+             Name="Tailport"
+             RequestedThemeVariant="Default">
+  <Application.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.ThemeDictionaries>
+        <!-- Windows 11 text, success, critical and accent-text colours. -->
+        <ResourceDictionary x:Key="Light">
+          <SolidColorBrush x:Key="SecondaryTextBrush" Color="#5D5D5D" />
+          <SolidColorBrush x:Key="SuccessBrush" Color="#0F7B0F" />
+          <SolidColorBrush x:Key="CriticalBrush" Color="#C42B1C" />
+          <SolidColorBrush x:Key="LinkBrush" Color="#005FB8" />
+          <SolidColorBrush x:Key="DividerBrush" Color="#E5E5E5" />
+          <SolidColorBrush x:Key="HeaderBackgroundBrush" Color="#F0F0F0" />
+          <SolidColorBrush x:Key="BannerBrush" Color="#FFF4CE" />
+          <SolidColorBrush x:Key="ChipBrush" Color="#F0F0F0" />
+          <SolidColorBrush x:Key="WindowBrush" Color="#F3F3F3" />
+          <SolidColorBrush x:Key="SurfaceBrush" Color="#FBFBFB" />
+        </ResourceDictionary>
+        <ResourceDictionary x:Key="Dark">
+          <SolidColorBrush x:Key="SecondaryTextBrush" Color="#C8C8C8" />
+          <SolidColorBrush x:Key="SuccessBrush" Color="#6CCB5F" />
+          <SolidColorBrush x:Key="CriticalBrush" Color="#FF99A4" />
+          <SolidColorBrush x:Key="LinkBrush" Color="#99EBFF" />
+          <SolidColorBrush x:Key="DividerBrush" Color="#3A3A3A" />
+          <SolidColorBrush x:Key="HeaderBackgroundBrush" Color="#2E2E2E" />
+          <SolidColorBrush x:Key="BannerBrush" Color="#433519" />
+          <SolidColorBrush x:Key="ChipBrush" Color="#333333" />
+          <SolidColorBrush x:Key="WindowBrush" Color="#202020" />
+          <SolidColorBrush x:Key="SurfaceBrush" Color="#272727" />
+        </ResourceDictionary>
+      </ResourceDictionary.ThemeDictionaries>
+      <FontFamily x:Key="MonoFont">Cascadia Mono, Consolas, Menlo, monospace</FontFamily>
+    </ResourceDictionary>
+  </Application.Resources>
+
+  <Application.Styles>
+    <FluentTheme />
+
+    <!-- Windows 11 window and content surfaces instead of Fluent's pure black or white. -->
+    <Style Selector="Window">
+      <Setter Property="Background" Value="{DynamicResource WindowBrush}" />
+    </Style>
+
+    <Style Selector="TextBlock.secondary">
+      <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}" />
+      <Setter Property="FontSize" Value="12" />
+    </Style>
+    <Style Selector="TextBlock.section">
+      <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}" />
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+    <Style Selector="TextBlock.label">
+      <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <!-- Text-style buttons for links such as localhost:10443 and "Add…". -->
+    <Style Selector="Button.link">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Padding" Value="2,0" />
+      <Setter Property="Foreground" Value="{DynamicResource LinkBrush}" />
+      <Setter Property="Cursor" Value="Hand" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+    <Style Selector="Button.link:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="Foreground" Value="{DynamicResource LinkBrush}" />
+      <Setter Property="TextBlock.TextDecorations" Value="Underline" />
+    </Style>
+    <Style Selector="Button.link:pressed /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="Foreground" Value="{DynamicResource LinkBrush}" />
+    </Style>
+
+    <!-- Status badges: a coloured mark beside text in the normal text colour, so state never relies on colour alone. -->
+    <Style Selector="Border.badge">
+      <Setter Property="Width" Value="14" />
+      <Setter Property="Height" Value="14" />
+      <Setter Property="CornerRadius" Value="7" />
+      <Setter Property="VerticalAlignment" Value="Top" />
+      <Setter Property="Margin" Value="0,1,6,0" />
+    </Style>
+    <Style Selector="Border.badge.ok">
+      <Setter Property="Background" Value="{DynamicResource SuccessBrush}" />
+    </Style>
+    <Style Selector="Border.badge.failed">
+      <Setter Property="Background" Value="{DynamicResource CriticalBrush}" />
+    </Style>
+    <Style Selector="Border.badge > TextBlock">
+      <Setter Property="FontSize" Value="10" />
+      <Setter Property="FontWeight" Value="Bold" />
+      <Setter Property="Foreground" Value="{DynamicResource SystemControlBackgroundAltHighBrush}" />
+      <Setter Property="HorizontalAlignment" Value="Center" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <Style Selector="ToggleSwitch.compact">
+      <Setter Property="OnContent" Value="" />
+      <Setter Property="OffContent" Value="" />
+      <Setter Property="MinWidth" Value="0" />
+    </Style>
+  </Application.Styles>
+</Application>

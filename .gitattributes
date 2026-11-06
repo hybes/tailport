@@ -1,0 +1,2 @@
+# Runs under /bin/sh on the remote machine, so it must keep Unix line endings.
+windows/src/Tailport.Core/scan.sh text eol=lf

@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>Tailport</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- The same POSIX script the macOS app runs on the remote machine; a test keeps the two copies identical. -->
+    <EmbeddedResource Include="scan.sh" LogicalName="Tailport.scan.sh" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Tailport.Core.Tests" />
+  </ItemGroup>
+
+</Project>
