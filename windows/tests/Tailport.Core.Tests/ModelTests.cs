@@ -84,7 +84,8 @@ public sealed class ModelTests : IDisposable
             """);
         var tailscale = Fake("tailscale",
             $"case \"$1\" in status) cat '{status}';; set) case \"$2\" in *100.64.0.6) echo '2026/11/06 16:48:12 node \"100.64.0.6\" is not advertising an exit node' >&2; exit 1;; esac;; esac",
-            $"if \"%1\"==\"status\" type \"{status}\"\nif \"%1\"==\"set\" if \"%2\"==\"--exit-node=100.64.0.6\" (echo 2026/11/06 16:48:12 node \"100.64.0.6\" is not advertising an exit node 1>&2\nexit /b 1)");
+            // cmd.exe splits arguments at "=", so match the exit node anywhere in the arguments instead of by position.
+            $"if \"%1\"==\"status\" type \"{status}\"\nif \"%1\"==\"set\" echo %*| findstr /c:\"100.64.0.6\" >nul && (echo 2026/11/06 16:48:12 node \"100.64.0.6\" is not advertising an exit node 1>&2\nexit /b 1)");
         var model = new AppModel(new SettingsStore(Path.Combine(directory.FullName, "s.json")), () => ssh, () => tailscale);
         await model.ScanNetworkAsync();
         Assert.Null(model.ScanError);
