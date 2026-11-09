@@ -9,6 +9,8 @@ public sealed class Settings
     public string? IgnoredPorts { get; set; }
     public string? IgnoredProcesses { get; set; }
     public Dictionary<string, List<NetworkDevice>> Devices { get; set; } = [];
+    public bool? CheckForUpdates { get; set; }
+    public DateTime? LastUpdateCheck { get; set; }
 }
 
 public sealed class SettingsStore(string path)

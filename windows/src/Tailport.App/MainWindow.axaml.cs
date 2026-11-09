@@ -39,6 +39,12 @@ public partial class MainWindow : Window
     void OpenPort_Click(object? sender, RoutedEventArgs e) => Row<PortRow>(sender)?.Open();
 
     void ExcludePort_Click(object? sender, RoutedEventArgs e) => Row<PortRow>(sender)?.Exclude();
+
+    void UpdateInstall_Click(object? sender, RoutedEventArgs e) => ViewModel?.InstallUpdate();
+
+    void UpdateDismiss_Click(object? sender, RoutedEventArgs e) => ViewModel?.DismissUpdate();
+
+    void UpdatePage_Click(object? sender, RoutedEventArgs e) => ViewModel?.OpenUpdatePage();
 }
 
 sealed class Command(Action action) : ICommand

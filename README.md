@@ -8,7 +8,12 @@ one, then opens one SSH connection containing all requested local forwards.
 
 ## Native macOS app
 
-Build locally with Xcode's command-line tools (Swift 6 or newer):
+Download `tailport-0.3.0-macos.zip` from the
+[latest release](https://github.com/hybes/tailport/releases/latest), open it
+and drag `Tailport.app` to Applications. Release builds are signed with a
+Developer ID and notarised by Apple, and run on Apple silicon and Intel Macs.
+
+Or build locally with Xcode's command-line tools (Swift 6 or newer):
 
 ```sh
 make app
@@ -94,6 +99,22 @@ reports that SSH access needs attention, connect once in Terminal with
 `ssh bh-mm` (or your selected machine), then refresh. Local port conflicts are
 reported beside the affected port; the other forwards continue working.
 
+### Updates
+
+Tailport checks GitHub for a new release once a day. When one is out, a
+banner in the window and an item in the menu bar offer to install it.
+**Install and Relaunch** downloads the release, checks it against the
+release's `SHA256SUMS` and checks that it is Tailport signed with the same
+Developer ID, then replaces the app and opens the new one. Forwarding stops
+while it relaunches.
+
+- **Check for Updates…** in the Tailport menu checks now. Turn off **Check for
+  Updates Automatically** there to stop the daily check.
+- Tailport replaces itself where it is. If it can't write there, it says so
+  and links to the release to download by hand.
+- Builds made with `make app` use an ad-hoc signature, but still update to
+  signed releases.
+
 ## Windows app
 
 `windows/` contains a Windows version of the app with the same features:
@@ -123,17 +144,25 @@ run as the `Tailport-windows-x64` artifact.
   crashes.
 - As on macOS, SSH must already work without a password prompt: connect once
   in a terminal with `ssh <machine>` first.
+- Tailport checks GitHub for a new release once a day and shows a banner when
+  one is out. **Install and restart** downloads the zip for this PC's
+  architecture, checks it against the release's `SHA256SUMS`, swaps in the new
+  `Tailport.exe` and restarts. The previous exe is kept as `Tailport.exe.old`
+  until the next launch. The tray menu's **Updates** submenu checks now or
+  turns the daily check off. The exe is not code-signed, so the checksum and
+  GitHub's HTTPS connection are the only checks. Builds without a release
+  version, such as `dotnet run`, never update.
 
 ## Install a release
 
 ### macOS (Darwin)
 
-Download `tailport-0.2.1-darwin.tar.gz` and `SHA256SUMS`, then:
+Download `tailport-0.3.0-darwin.tar.gz` and `SHA256SUMS`, then:
 
 ```sh
-grep 'tailport-0.2.1-darwin.tar.gz$' SHA256SUMS | shasum -a 256 -c -
-tar -xzf tailport-0.2.1-darwin.tar.gz
-cd tailport-0.2.1-darwin
+grep 'tailport-0.3.0-darwin.tar.gz$' SHA256SUMS | shasum -a 256 -c -
+tar -xzf tailport-0.3.0-darwin.tar.gz
+cd tailport-0.3.0-darwin
 ./install.sh
 ```
 
@@ -142,7 +171,7 @@ This installs `tailport` and its short alias `tp` into `~/.local/bin`. Set
 
 ### Windows app
 
-Download `tailport-0.2.1-windows-app-x64.zip` (or `-arm64` for ARM PCs) and
+Download `tailport-0.3.0-windows-app-x64.zip` (or `-arm64` for ARM PCs) and
 `SHA256SUMS`, check the zip as below, extract it and run `Tailport.exe`. It
 needs Tailscale and the OpenSSH Client that Windows includes. The app is not
 code-signed, so Windows SmartScreen asks you to confirm the first time
@@ -150,15 +179,15 @@ code-signed, so Windows SmartScreen asks you to confirm the first time
 
 ### Windows command
 
-Download `tailport-0.2.1-windows.zip` and `SHA256SUMS`. In PowerShell:
+Download `tailport-0.3.0-windows.zip` and `SHA256SUMS`. In PowerShell:
 
 ```powershell
-$expected = ((Select-String 'tailport-0.2.1-windows.zip$' SHA256SUMS).Line -split '\s+')[0]
-$actual = (Get-FileHash .\tailport-0.2.1-windows.zip -Algorithm SHA256).Hash.ToLower()
+$expected = ((Select-String 'tailport-0.3.0-windows.zip$' SHA256SUMS).Line -split '\s+')[0]
+$actual = (Get-FileHash .\tailport-0.3.0-windows.zip -Algorithm SHA256).Hash.ToLower()
 if ($actual -ne $expected) { throw 'Checksum verification failed' }
 
-Expand-Archive .\tailport-0.2.1-windows.zip -DestinationPath .
-cd .\tailport-0.2.1-windows
+Expand-Archive .\tailport-0.3.0-windows.zip -DestinationPath .
+cd .\tailport-0.3.0-windows
 powershell.exe -ExecutionPolicy Bypass -File .\install.ps1
 ```
 
@@ -166,12 +195,12 @@ The Windows installer creates `tailport.cmd` and `tp.cmd` in the current
 user's local application-data directory and adds that directory to the user
 `PATH`. Open a new terminal after installation.
 
-The release also provides standalone `tailport-0.2.1-darwin` and
-`tailport-0.2.1-windows.ps1` scripts.
+The release also provides standalone `tailport-0.3.0-darwin` and
+`tailport-0.3.0-windows.ps1` scripts.
 
 ## Build from source
 
-Download and extract `tailport-0.2.1-source.tar.gz`, or clone the repository.
+Download and extract `tailport-0.3.0-source.tar.gz`, or clone the repository.
 The command implementations are ordinary Zsh and PowerShell. `make build`
 stamps their version from `VERSION`. `make app` compiles the separate SwiftUI
 app without third-party package dependencies.
@@ -238,20 +267,50 @@ On Darwin:
 make release
 ```
 
-For version `0.2.1`, this produces:
+For version `0.3.0`, this produces:
 
-- `dist/tailport-0.2.1-darwin`
-- `dist/tailport-0.2.1-darwin.tar.gz`
-- `dist/tailport-0.2.1-windows.ps1`
-- `dist/tailport-0.2.1-windows.zip`
-- `dist/tailport-0.2.1-source.tar.gz`
+- `dist/tailport-0.3.0-darwin`
+- `dist/tailport-0.3.0-darwin.tar.gz`
+- `dist/tailport-0.3.0-windows.ps1`
+- `dist/tailport-0.3.0-windows.zip`
+- `dist/tailport-0.3.0-source.tar.gz`
 - `dist/Tailport.app`
-- `dist/tailport-0.2.1-macos.zip` (locally signed app, built for the current Mac's architecture)
-- `dist/tailport-0.2.1-windows-app-x64.zip` and `-arm64.zip` (when the .NET 10 SDK is installed)
+- `dist/tailport-0.3.0-macos.zip` (universal app)
+- `dist/tailport-0.3.0-windows-app-x64.zip` and `-arm64.zip` (when the .NET 10 SDK is installed)
 - `dist/SHA256SUMS`
 
-Change `VERSION` before a future release, commit the change, create a matching
-tag such as `v0.3.0`, then attach the generated files to the release.
+`make release` builds an ad-hoc signed, universal Mac app. Set
+`TAILPORT_SIGN_IDENTITY` to sign with a Developer ID, and
+`TAILPORT_NOTARY_PROFILE` to notarise and staple it.
+
+### Publish a release
+
+The apps update from the latest GitHub release, so publish with:
+
+```sh
+make publish NOTES=notes.md    # NOTES is optional; GitHub writes notes without it
+```
+
+This checks that `main` is clean and pushed and that the version's tag is new,
+then signs the Mac app with the Developer ID Application certificate for team
+`BBU4YNR4U3`, notarises and staples it, builds the Windows apps, verifies
+`SHA256SUMS`, tags `v<VERSION>`, pushes the tag and creates the release with
+every file in `dist/`. `scripts/publish.zsh --dry-run` does everything except
+tag and publish.
+
+It needs `gh` signed in, the .NET 10 SDK, the certificate in the login
+keychain, and notarisation credentials. Store an App Store Connect API key once
+as the `notary` profile, which any project on the Mac can use:
+
+```sh
+xcrun notarytool store-credentials notary \
+  --key ~/.appstoreconnect/private_keys/AuthKey_<KEY ID>.p8 --key-id <KEY ID> --issuer <ISSUER ID>
+```
+
+Set `TAILPORT_NOTARY_PROFILE` to use another profile, or `TAILPORT_NOTARY_KEY_ID`
+and `TAILPORT_NOTARY_ISSUER` to use the key file directly.
+
+For each release, change `VERSION`, commit and push, then run `make publish`.
 
 ## Usage
 

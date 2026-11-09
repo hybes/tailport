@@ -23,18 +23,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 struct TailportApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
     @StateObject private var model = AppModel()
+    @StateObject private var updater = Updater()
     var body: some Scene {
         Window("Tailport", id: "main") {
-            PortsView(model: model)
-                .onAppear { delegate.model = model; model.start() }
+            PortsView(model: model, updater: updater)
+                .onAppear { delegate.model = model; model.start(); updater.start() }
         }
         .defaultSize(width: 760, height: 540)
         .commands {
             CommandGroup(replacing: .newItem) {}
+            CommandGroup(after: .appInfo) { UpdateCommands(updater: updater) }
             CommandGroup(replacing: .appSettings) {
                 Button("Exclusions…") { model.showExclusions = true }.keyboardShortcut(",")
             }
         }
-        MenuBarExtra("Tailport", systemImage: "network") { MenuView(model: model) }
+        MenuBarExtra("Tailport", systemImage: "network") { MenuView(model: model, updater: updater) }
+    }
+}
+
+/// Tailport menu items for checking for updates; a manual check shows its result in the main window.
+private struct UpdateCommands: View {
+    @ObservedObject var updater: Updater
+    @Environment(\.openWindow) private var openWindow
+
+    var body: some View {
+        Button("Check for Updates…") {
+            openWindow(id: "main")
+            NSApp.activate(ignoringOtherApps: true)
+            Task { await updater.check(manual: true) }
+        }
+        Toggle("Check for Updates Automatically", isOn: $updater.automatic)
     }
 }

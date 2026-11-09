@@ -22,6 +22,11 @@
     <DebugType>none</DebugType>
   </PropertyGroup>
 
+  <!-- Release builds record their version; the updater stays off in development builds without it. -->
+  <ItemGroup Condition="'$(TailportVersion)' != ''">
+    <AssemblyMetadata Include="TailportVersion" Value="$(TailportVersion)" />
+  </ItemGroup>
+
   <ItemGroup>
     <AvaloniaResource Include="Assets\**" />
   </ItemGroup>

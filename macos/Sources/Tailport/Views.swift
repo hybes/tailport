@@ -3,6 +3,7 @@ import AppKit
 
 struct PortsView: View {
     @ObservedObject var model: AppModel
+    @ObservedObject var updater: Updater
 
     var body: some View {
         VStack(spacing: 0) {
@@ -41,6 +42,8 @@ struct PortsView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 22)
             .padding(.top, 16)
+
+            UpdateBanner(updater: updater, forwarding: model.hasAnyForwards)
 
             if let error = model.error {
                 HStack(alignment: .top, spacing: 10) {
@@ -193,6 +196,68 @@ private struct StatusLabel: View {
             Text(text).foregroundStyle(.primary).textSelection(.enabled)
         } icon: {
             Image(systemName: systemImage).foregroundStyle(tint)
+        }
+    }
+}
+
+/// Offers a newer Tailport, and shows the result of a check or install.
+private struct UpdateBanner: View {
+    @ObservedObject var updater: Updater
+    let forwarding: Bool
+
+    var body: some View {
+        if let content {
+            HStack(alignment: .center, spacing: 10) {
+                content
+                Spacer(minLength: 0)
+                actions
+            }
+            .padding(12)
+            .background(.quaternary.opacity(0.4))
+            .padding(.horizontal, 22)
+            .padding(.top, 12)
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("update")
+        }
+    }
+
+    private var content: AnyView? {
+        switch updater.state {
+        case .idle, .checking(manual: false):
+            return nil
+        case .checking(manual: true):
+            return AnyView(HStack(spacing: 8) { ProgressView().controlSize(.small); Text("Checking for updates…") })
+        case .upToDate:
+            return AnyView(StatusLabel(text: "Tailport \(updater.current) is the latest version.",
+                                       systemImage: "checkmark.circle.fill", tint: .green))
+        case .available(let release):
+            return AnyView(VStack(alignment: .leading, spacing: 2) {
+                StatusLabel(text: "Tailport \(release.version) is available. You have \(updater.current).",
+                            systemImage: "arrow.down.circle.fill", tint: .accentColor)
+                if forwarding {
+                    Text("Forwarding stops while Tailport relaunches.").font(.subheadline).foregroundStyle(.secondary)
+                }
+            })
+        case .installing(let release):
+            return AnyView(HStack(spacing: 8) { ProgressView().controlSize(.small); Text("Installing Tailport \(release.version)…") })
+        case .failed(let message, _):
+            return AnyView(FailureText(message: message).fixedSize(horizontal: false, vertical: true))
+        }
+    }
+
+    @ViewBuilder private var actions: some View {
+        switch updater.state {
+        case .upToDate, .failed(_, nil):
+            Button("OK") { updater.dismiss() }
+        case .available(let release):
+            Link("What’s new", destination: release.page)
+            Button("Later") { updater.dismiss() }
+            Button("Install and Relaunch") { Task { await updater.install(release) } }
+        case .failed(_, let release?):
+            Link("Download from GitHub", destination: release.page)
+            Button("Try Again") { Task { await updater.install(release) } }
+        default:
+            EmptyView()
         }
     }
 }
@@ -610,9 +675,13 @@ struct ExclusionsView: View {
 
 struct MenuView: View {
     @ObservedObject var model: AppModel
+    @ObservedObject var updater: Updater
     @Environment(\.openWindow) private var openWindow
     var body: some View {
         Text(model.forwardingCount == 0 ? "Nothing forwarding" : "\(model.forwardingCount) forwarding")
+        if case .available(let release) = updater.state {
+            Button("Install Tailport \(release.version) and Relaunch") { Task { await updater.install(release) } }
+        }
         RouterPicker(model: model)
             .pickerStyle(.menu)
         Button("Open Tailport") { openWindow(id: "main"); NSApp.activate(ignoringOtherApps: true) }

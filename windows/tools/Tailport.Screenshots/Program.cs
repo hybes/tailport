@@ -91,7 +91,14 @@ foreach (var theme in new[] { ThemeVariant.Dark, ThemeVariant.Light })
         },
     });
     var model = new AppModel(store, () => ssh, () => tailscale);
-    var vm = new MainViewModel(model);
+    var release = System.Text.Encoding.UTF8.GetBytes("""
+        {"tag_name":"v0.3.0","html_url":"https://github.com/hybes/tailport/releases/tag/v0.3.0","assets":[
+         {"name":"tailport-0.3.0-windows-app-x64.zip","browser_download_url":"https://example.com/x64.zip"},
+         {"name":"SHA256SUMS","browser_download_url":"https://example.com/SHA256SUMS"}]}
+        """);
+    var updater = new Updater(model, "0.2.1", Path.Combine(work.FullName, "Tailport.exe"), _ => Task.FromResult(release),
+        System.Runtime.InteropServices.Architecture.X64);
+    var vm = new MainViewModel(model, updater);
     var main = new MainWindow { DataContext = vm, Width = 760, Height = 560 };
     main.Show();
     var refresh = model.RefreshAsync();
@@ -100,6 +107,15 @@ foreach (var theme in new[] { ThemeVariant.Dark, ThemeVariant.Light })
     model.SetEnabled(true, model.Devices[2]);
     Pump(() => model.DeviceStates.Count == 2 && model.DeviceStates.Values.All(s => s.Kind != ForwardKind.Connecting));
     Save(main, $"{label}-1-devices");
+
+    var check = updater.CheckAsync();
+    Pump(() => check.IsCompleted);
+    Save(main, $"{label}-8-update");
+    var install = updater.InstallAsync(updater.State.Release!);
+    Pump(() => install.IsCompleted);
+    Save(main, $"{label}-9-update-failed");
+    updater.Dismiss();
+    updater.Dismiss();
 
     var route = model.RouteThroughAsync("bh-pi-5");
     Pump(() => route.IsCompleted);
