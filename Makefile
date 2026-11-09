@@ -4,7 +4,7 @@ DARWIN_ARTIFACT := $(CURDIR)/dist/tailport-darwin
 export TAILPORT_BUILD_DIR ?= $(CURDIR)/macos/.build
 DOTNET ?= dotnet
 
-.PHONY: build app test test-app windows-app test-windows-app windows-screenshots package release install uninstall clean
+.PHONY: build app test test-app windows-app test-windows-app windows-screenshots package release publish install uninstall clean
 
 build:
 	zsh scripts/build.zsh
@@ -33,10 +33,15 @@ windows-screenshots:
 package: test app
 	zsh scripts/package.zsh
 
+# Release builds of the Mac app run on Apple silicon and Intel Macs.
 release:
 	$(MAKE) clean
-	$(MAKE) package
+	TAILPORT_ARCHS="$${TAILPORT_ARCHS:-arm64 x86_64}" $(MAKE) package
 	@printf '\nRelease artifacts are ready in dist/.\n'
+
+# Signs with Developer ID, notarises, tags and creates the GitHub release. NOTES=file sets the release notes.
+publish:
+	zsh scripts/publish.zsh $(NOTES)
 
 install: build
 	mkdir -p "$(BINDIR)"

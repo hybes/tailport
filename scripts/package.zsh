@@ -71,6 +71,7 @@ install -m 0644 "$repo_root/scripts/build-windows.ps1" "$source_dir/scripts/buil
 install -m 0755 "$repo_root/scripts/install.sh" "$source_dir/scripts/install.sh"
 install -m 0644 "$repo_root/scripts/install.ps1" "$source_dir/scripts/install.ps1"
 install -m 0755 "$repo_root/scripts/package.zsh" "$source_dir/scripts/package.zsh"
+install -m 0755 "$repo_root/scripts/publish.zsh" "$source_dir/scripts/publish.zsh"
 install -m 0755 "$repo_root/tests/tailport_test.zsh" "$source_dir/tests/tailport_test.zsh"
 install -m 0644 "$repo_root/tests/tailport_windows_test.ps1" "$source_dir/tests/tailport_windows_test.ps1"
 tar -cf - --exclude '.build' --exclude '.swiftpm' -C "$repo_root" macos | tar -xf - -C "$source_dir"
@@ -83,6 +84,29 @@ tar -czf "$dist_dir/$darwin_archive_name" -C "$stage" "$darwin_name"
 )
 tar -czf "$dist_dir/$source_archive_name" -C "$stage" "$source_name"
 ditto -c -k --sequesterRsrc --keepParent "$dist_dir/Tailport.app" "$dist_dir/$macos_archive_name"
+# Notarise the app and staple the ticket when given notarytool credentials: either TAILPORT_NOTARY_PROFILE
+# (a `notarytool store-credentials` profile), or an App Store Connect API key in TAILPORT_NOTARY_KEY_ID and
+# TAILPORT_NOTARY_ISSUER, read from TAILPORT_NOTARY_KEY (default ~/.appstoreconnect/private_keys/AuthKey_<ID>.p8).
+notary=()
+if [[ -n ${TAILPORT_NOTARY_PROFILE:-} ]]; then
+  notary=(--keychain-profile "$TAILPORT_NOTARY_PROFILE")
+elif [[ -n ${TAILPORT_NOTARY_KEY_ID:-} ]]; then
+  notary=(--key "${TAILPORT_NOTARY_KEY:-$HOME/.appstoreconnect/private_keys/AuthKey_$TAILPORT_NOTARY_KEY_ID.p8}"
+          --key-id "$TAILPORT_NOTARY_KEY_ID" --issuer "${TAILPORT_NOTARY_ISSUER:?set TAILPORT_NOTARY_ISSUER for the API key}")
+fi
+if (( ${#notary} )); then
+  print -- "Notarising $macos_archive_name (this usually takes a few minutes)"
+  result=$(xcrun notarytool submit "$dist_dir/$macos_archive_name" "${notary[@]}" --wait --output-format json)
+  if [[ $(jq -r .status <<< "$result") != Accepted ]]; then
+    print -u2 -- "package: notarisation failed: $result"
+    print -u2 -- "package: see why with: xcrun notarytool log $(jq -r .id <<< "$result") ${notary[*]}"
+    exit 1
+  fi
+  xcrun stapler staple "$dist_dir/Tailport.app"
+  # Zip the stapled app again so the download carries the ticket.
+  ditto -c -k --sequesterRsrc --keepParent "$dist_dir/Tailport.app" "$dist_dir/$macos_archive_name.stapled"
+  mv -f "$dist_dir/$macos_archive_name.stapled" "$dist_dir/$macos_archive_name"
+fi
 (
   cd "$dist_dir"
   shasum -a 256 \

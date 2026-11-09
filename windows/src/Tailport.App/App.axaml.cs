@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
@@ -9,6 +10,7 @@ namespace Tailport.App;
 public partial class App : Application
 {
     MainViewModel? viewModel;
+    Updater? updater;
     MainWindow? window;
     TrayIcon? tray;
     bool quitting;
@@ -31,7 +33,11 @@ public partial class App : Application
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             var model = new AppModel(SettingsStore.Default());
-            viewModel = new MainViewModel(model);
+            var exe = Environment.ProcessPath ?? Path.Combine(AppContext.BaseDirectory, "Tailport.exe");
+            Updater.CleanUp(exe);
+            updater = new Updater(model, OperatingSystem.IsWindows() ? UpdateSource.RunningVersion() : null, exe);
+            updater.Installed += Restart;
+            viewModel = new MainViewModel(model, updater);
             window = new MainWindow { DataContext = viewModel };
             // Closing the window keeps forwarding running; quit from the tray icon.
             window.Closing += (_, e) =>
@@ -52,8 +58,10 @@ public partial class App : Application
             tray.Clicked += (_, _) => ShowWindow();
             TrayIcon.SetIcons(this, [tray]);
             model.Changed += BuildTrayMenu;
+            updater.Changed += BuildTrayMenu;
             BuildTrayMenu();
             model.Start();
+            updater.Start();
         }
         base.OnFrameworkInitializationCompleted();
     }
@@ -66,13 +74,26 @@ public partial class App : Application
         window.Activate();
     }
 
-    async void Quit()
+    async void Quit() => await QuitAsync();
+
+    async Task QuitAsync()
     {
         if (viewModel is null || ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop) return;
         quitting = true;
+        updater?.Stop();
         await viewModel.Model.ShutdownAsync();
         tray?.Dispose();
         desktop.Shutdown();
+    }
+
+    /// <summary>Starts the updated Tailport.exe once this one has closed its tunnels, so their ports are free.</summary>
+    async void Restart()
+    {
+        if (updater is null) return;
+        var exe = updater.ExePath;
+        await QuitAsync();
+        try { Process.Start(new ProcessStartInfo(exe) { UseShellExecute = false }); }
+        catch (Exception error) when (error is System.ComponentModel.Win32Exception or InvalidOperationException) { }
     }
 
     /// <summary>The tray menu mirrors the macOS menu bar item.</summary>
@@ -82,11 +103,18 @@ public partial class App : Application
         var model = viewModel.Model;
         // Rebuild only when something in the menu changes; refreshes otherwise churn the system tray.
         var key = string.Join("|", viewModel.TrayTitle, model.Router?.Target, model.RoutingBusy, model.HasAnyForwards,
+            updater?.State.Kind, updater?.State.Release?.Version, updater?.Automatic,
             string.Join(",", model.Routers.Select(p => $"{p.Target}:{p.Online}:{p.Routes.Count}")));
         if (key == trayKey) return;
         trayKey = key;
         menu.Items.Clear();
         menu.Items.Add(new NativeMenuItem(viewModel.TrayTitle) { IsEnabled = false });
+        if (updater?.State is { Kind: UpdateKind.Available, Release: { } release })
+        {
+            var install = new NativeMenuItem($"Install Tailport {release.Version} and restart");
+            install.Click += (_, _) => _ = updater.InstallAsync(release);
+            menu.Items.Add(install);
+        }
 
         var routes = new NativeMenu();
         void AddRoute(string label, string? target, bool enabled = true)
@@ -108,6 +136,17 @@ public partial class App : Application
         var open = new NativeMenuItem("Open Tailport");
         open.Click += (_, _) => ShowWindow();
         menu.Items.Add(open);
+        if (updater is { Enabled: true } checker)
+        {
+            var updates = new NativeMenu();
+            var check = new NativeMenuItem("Check now") { IsEnabled = checker.State.Kind is not (UpdateKind.Checking or UpdateKind.Installing) };
+            check.Click += (_, _) => { ShowWindow(); _ = checker.CheckAsync(manual: true); };
+            updates.Items.Add(check);
+            var automatic = new NativeMenuItem("Check automatically") { ToggleType = NativeMenuItemToggleType.CheckBox, IsChecked = checker.Automatic };
+            automatic.Click += (_, _) => checker.Automatic = !checker.Automatic;
+            updates.Items.Add(automatic);
+            menu.Items.Add(new NativeMenuItem("Updates") { Menu = updates });
+        }
         menu.Items.Add(new NativeMenuItemSeparator());
         var stop = new NativeMenuItem("Stop all forwarding") { IsEnabled = model.HasAnyForwards };
         stop.Click += (_, _) => model.StopAll();

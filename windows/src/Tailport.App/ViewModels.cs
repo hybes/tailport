@@ -178,11 +178,56 @@ public sealed class MainViewModel : ObservableObject
     public AppModel Model { get; }
     public bool Syncing { get; private set; }
 
-    public MainViewModel(AppModel model)
+    public MainViewModel(AppModel model, Updater? updater = null)
     {
         Model = model;
+        Updater = updater;
         model.Changed += Sync;
+        if (updater is not null) updater.Changed += SyncUpdate;
         Sync();
+    }
+
+    public Updater? Updater { get; }
+
+    // Update banner
+    public bool HasUpdate { get; private set; }
+    public string UpdateText { get; private set; } = "";
+    public string? UpdateDetail { get; private set; }
+    public bool HasUpdateDetail => UpdateDetail is not null;
+    public bool UpdateBusy { get; private set; }
+    public bool UpdateFailed { get; private set; }
+    public string? UpdateInstallLabel { get; private set; }
+    public bool UpdateCanInstall => UpdateInstallLabel is not null;
+    public string? UpdateDismissLabel { get; private set; }
+    public bool UpdateCanDismiss => UpdateDismissLabel is not null;
+    public string? UpdatePageLabel { get; private set; }
+    public bool UpdateHasPage => UpdatePageLabel is not null;
+
+    public void InstallUpdate() { if (Updater?.State.Release is { } release) _ = Updater.InstallAsync(release); }
+    public void DismissUpdate() => Updater?.Dismiss();
+    public void OpenUpdatePage() => Shell.Open(Updater?.State.Release?.Page ?? $"https://github.com/{UpdateSource.Repository}/releases/latest");
+
+    void SyncUpdate()
+    {
+        var state = Updater?.State ?? UpdateState.Idle;
+        var current = Updater?.Current;
+        (HasUpdate, UpdateText, UpdateDetail, UpdateBusy, UpdateFailed, UpdateInstallLabel, UpdateDismissLabel, UpdatePageLabel) = state switch
+        {
+            { Kind: UpdateKind.Checking, Manual: true } => (true, "Checking for updates…", null, true, false, null, null, null),
+            { Kind: UpdateKind.UpToDate } => (true, $"Tailport {current} is the latest version.", null, false, false, null, "OK", null),
+            { Kind: UpdateKind.Available, Release: { } release } => (true, $"Tailport {release.Version} is available. You have {current}.",
+                Model.HasAnyForwards ? "Forwarding stops while Tailport restarts." : null, false, false, "Install and restart", "Later", "What’s new"),
+            { Kind: UpdateKind.Installing, Release: { } release } => (true, $"Installing Tailport {release.Version}…", null, true, false, null, null, null),
+            { Kind: UpdateKind.Failed, Release: { } } => (true, state.Message ?? "", null, false, true, "Try again", null, "Download from GitHub"),
+            { Kind: UpdateKind.Failed } => (true, state.Message ?? "", null, false, true, null, "OK", null),
+            _ => (false, "", (string?)null, false, false, (string?)null, (string?)null, (string?)null),
+        };
+        foreach (var name in new[]
+        {
+            nameof(HasUpdate), nameof(UpdateText), nameof(UpdateDetail), nameof(HasUpdateDetail), nameof(UpdateBusy), nameof(UpdateFailed),
+            nameof(UpdateInstallLabel), nameof(UpdateCanInstall), nameof(UpdateDismissLabel), nameof(UpdateCanDismiss),
+            nameof(UpdatePageLabel), nameof(UpdateHasPage),
+        }) RaiseChanged(name);
     }
 
     public ObservableCollection<PeerOption> Machines { get; } = [];
@@ -309,6 +354,7 @@ public sealed class MainViewModel : ObservableObject
         }
         finally { Syncing = false; }
         RaiseAll();
+        SyncUpdate();
     }
 
     List<PeerOption> MachineOptions()

@@ -29,7 +29,7 @@
     </DataTemplate>
   </Window.DataTemplates>
 
-  <Grid RowDefinitions="Auto,Auto,*,Auto">
+  <Grid RowDefinitions="Auto,Auto,Auto,*,Auto">
 
     <!-- Machine, route and commands -->
     <Grid Grid.Row="0" Margin="20,16,20,14" ColumnDefinitions="Auto,*,Auto" RowDefinitions="Auto,Auto,Auto" >
@@ -85,8 +85,28 @@
                       IsVisible="{Binding HasRoutingStatus}" />
     </Grid>
 
+    <!-- Update -->
+    <Border Grid.Row="1" IsVisible="{Binding HasUpdate}" Background="{DynamicResource HeaderBackgroundBrush}"
+            CornerRadius="6" Padding="12,10" Margin="20,0,20,14">
+      <DockPanel>
+        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="8" Margin="12,0,0,0" VerticalAlignment="Center">
+          <Button Classes="link" Content="{Binding UpdatePageLabel}" IsVisible="{Binding UpdateHasPage}" Click="UpdatePage_Click"
+                  VerticalAlignment="Center" />
+          <Button Content="{Binding UpdateDismissLabel}" IsVisible="{Binding UpdateCanDismiss}" Click="UpdateDismiss_Click" />
+          <Button Classes="accent" Content="{Binding UpdateInstallLabel}" IsVisible="{Binding UpdateCanInstall}" Click="UpdateInstall_Click" />
+        </StackPanel>
+        <Border Classes="badge failed" IsVisible="{Binding UpdateFailed}"><TextBlock Text="!" /></Border>
+        <ProgressBar IsIndeterminate="{Binding UpdateBusy}" IsVisible="{Binding UpdateBusy}" Width="32" Margin="0,0,10,0"
+                     VerticalAlignment="Center" />
+        <StackPanel Spacing="2" VerticalAlignment="Center">
+          <SelectableTextBlock Text="{Binding UpdateText}" TextWrapping="Wrap" />
+          <TextBlock Classes="secondary" FontSize="12" Text="{Binding UpdateDetail}" IsVisible="{Binding HasUpdateDetail}" TextWrapping="Wrap" />
+        </StackPanel>
+      </DockPanel>
+    </Border>
+
     <!-- Connection problem -->
-    <Border Grid.Row="1" IsVisible="{Binding HasError}" Background="{DynamicResource BannerBrush}"
+    <Border Grid.Row="2" IsVisible="{Binding HasError}" Background="{DynamicResource BannerBrush}"
             CornerRadius="6" Padding="12,10" Margin="20,0,20,14">
       <DockPanel>
         <Button DockPanel.Dock="Right" Content="Retry" Click="Refresh_Click" Margin="12,0,0,0" VerticalAlignment="Center" />
@@ -96,7 +116,7 @@
     </Border>
 
     <!-- Devices and listening ports -->
-    <Border Grid.Row="2" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,1" Background="{DynamicResource SurfaceBrush}">
+    <Border Grid.Row="3" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,1" Background="{DynamicResource SurfaceBrush}">
       <Panel>
         <ScrollViewer IsVisible="{Binding ShowList}">
           <StackPanel>
@@ -198,7 +218,7 @@
     </Border>
 
     <!-- Footer -->
-    <DockPanel Grid.Row="3" Margin="20,8">
+    <DockPanel Grid.Row="4" Margin="20,8">
       <TextBlock DockPanel.Dock="Right" Classes="secondary" FontSize="13" Text="{Binding FooterStatus}" VerticalAlignment="Center" />
       <StackPanel Orientation="Horizontal" Spacing="16">
         <CheckBox Content="{Binding ShowIgnoredLabel}" IsChecked="{Binding ShowIgnored}" />

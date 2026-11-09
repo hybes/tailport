@@ -69,6 +69,19 @@ public sealed class AppModel
     public bool RoutingBusy { get; private set; }
     public string? RoutingError { get; private set; }
 
+    /// <summary>Whether <see cref="Updater"/> checks GitHub once a day. Stored with the other settings.</summary>
+    public bool CheckForUpdates
+    {
+        get => settings.CheckForUpdates ?? true;
+        set { settings.CheckForUpdates = value; Save(); Notify(); }
+    }
+
+    public DateTime? LastUpdateCheck
+    {
+        get => settings.LastUpdateCheck;
+        set { settings.LastUpdateCheck = value; Save(); }
+    }
+
     bool showIgnored;
     public bool ShowIgnored { get => showIgnored; set { showIgnored = value; Notify(); } }
 
